@@ -16,11 +16,11 @@ use fnv::FnvHashSet;
 
 #[derive(Debug)]
 pub struct DFA<StateIdT, SymbolT> {
-    states: FnvHashSet<StateIdT>,
-    initial_state: Option<StateIdT>,
-    symbols: FnvHashSet<SymbolT>,
-    accept_states: FnvHashSet<StateIdT>,
-    transitions: FnvHashMap<(StateIdT, SymbolT), StateIdT>,
+    pub states: FnvHashSet<StateIdT>,
+    pub initial_state: Option<StateIdT>,
+    pub symbols: FnvHashSet<SymbolT>,
+    pub accept_states: FnvHashSet<StateIdT>,
+    pub transitions: FnvHashMap<(StateIdT, SymbolT), StateIdT>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -35,11 +35,34 @@ where
 StateIdT: Hash + Eq + Copy,
 SymbolT: Hash + Eq + Copy
 {
-    pub fn add_state(self: &mut DFA<StateIdT, SymbolT>, state: StateIdT) -> () {
+
+    /// Add a state to a DFAs set of states.
+    ///
+    /// # Example
+    /// ```
+    /// // DFA with u16 state IDs and u16 symbols
+    /// let mut dfa: finite_state_machine::DFA<u16, u16>;
+    ///
+    /// dfa = finite_state_machine::DFA {
+    ///     states: fnv::FnvHashSet::default(),
+    ///     initial_state: None,
+    ///     symbols: fnv::FnvHashSet::default(),
+    ///     accept_states: fnv::FnvHashSet::default(),
+    ///     transitions: fnv::FnvHashMap::default(),
+    /// };
+    ///
+    /// // Add a new state with ID 0:
+    /// assert!(dfa.add_state(0).is_ok());
+    ///
+    /// // Try to add state that already exists:
+    /// assert!(dfa.add_state(0).is_err());
+    /// ```
+    pub fn add_state(self: &mut DFA<StateIdT, SymbolT>, state: StateIdT) -> Result<(), &str> {
         if !self.states.contains(&state) {
             self.states.insert(state);
+            Ok(())
         } else {
-            panic!("State with given ID is already present in set of states.");
+            Err("State with given ID is already present in set of states.")
         }
     }
 
@@ -137,9 +160,13 @@ mod tests {
 
         dfa.add_symbols(symbols);
 
-        dfa.add_state(0);
-        dfa.add_state(1);
-        dfa.add_state(2);
+        for i in 0..3 {
+            match dfa.add_state(i) {
+                Ok(_) => continue,
+                Err(_) => return,
+            }
+        }
+
         dfa.set_initial_state(0);
         dfa.declare_accept_state(2);
 
@@ -151,7 +178,16 @@ mod tests {
         let result = output.unwrap();
 
         assert_eq!(result, (RunResult::Accept, vec![0,1,2]));
-        println!("Result of trace_run: {:?}", result);
+
+        // only [0-9] are valid symbols, 10 is invalid.
+        let input: Vec<u16> = vec![5, 10];
+        let output = dfa.trace_run(input);
+        let result = match output {
+            Ok(_)  => Ok(()),
+            Err(_) => Err(()),
+        };
+
+        assert!(result.is_err());
     }
 }
 
