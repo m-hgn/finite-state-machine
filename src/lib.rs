@@ -1,19 +1,20 @@
-//! # Automatastic
-//!
-//! Model deterministic finite automata as a Type ```Automaton```,
-//! encapsulating the Tuple (Q, q_0, Sigma, F, Delta):
-//! - The finite set of states (Q) ```states```,
-//! - The initial state (q_0) ```initial_state```,
-//! - The finite set of input symbols (Sigma) ```symbols```,
-//! - The set of accept states (F) ```accept_states```,
-//! - The transition functions (Delta) ```transitions```,
-//!   defined in terms of a state and an input symbol.
+//! # finite_state_machine
+//! Model deterministic finite automata and run them!
 
 use std::result::Result;
+
+use std::collections::hash_map::Entry::Vacant;
 use std::hash::Hash;
 use fnv::FnvHashMap;
 use fnv::FnvHashSet;
 
+/// State machine encapsulating the Tuple (Q, q0, Sigma, F, Delta)
+/// - The finite set of states (Q) `states`,
+/// - The initial state (q0) `initial_state`,
+/// - The finite set of input symbols (Sigma) `symbols`,
+/// - The set of accept states (F) `accept_states`,
+/// - The transition functions (Delta) `transitions`,
+///   defined in terms of a state and an input symbol.
 #[derive(Debug)]
 pub struct DFA<StateIdT, SymbolT> {
     pub states: FnvHashSet<StateIdT>,
@@ -23,11 +24,23 @@ pub struct DFA<StateIdT, SymbolT> {
     pub transitions: FnvHashMap<(StateIdT, SymbolT), StateIdT>,
 }
 
-#[derive(Debug, PartialEq)]
+/// Enum representing the Accepted, Denied and Unfinished \
+/// states of running input through a DFA
+#[derive(Debug, PartialEq, Eq)]
 pub enum RunResult {
     Accept,
     Deny,
     Unfinished,
+}
+
+impl<StateIdT, SymbolT> Default for DFA<StateIdT, SymbolT>
+where
+StateIdT: Hash + Eq + Copy,
+SymbolT: Hash + Eq + Copy
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<StateIdT, SymbolT> DFA<StateIdT, SymbolT>
@@ -35,21 +48,34 @@ where
 StateIdT: Hash + Eq + Copy,
 SymbolT: Hash + Eq + Copy
 {
+    /// Create a new DFA with no states or transitions.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// ```
+    pub fn new() -> DFA<StateIdT, SymbolT> {
+        DFA {
+            states: fnv::FnvHashSet::default(),
+            initial_state: None,
+            symbols: fnv::FnvHashSet::default(),
+            accept_states: fnv::FnvHashSet::default(),
+            transitions: fnv::FnvHashMap::default(),
+        }
+    }
 
     /// Add a state to a DFAs set of states.
     ///
     /// # Example
     /// ```
-    /// // DFA with u16 state IDs and u16 symbols
-    /// let mut dfa: finite_state_machine::DFA<u16, u16>;
+    /// use finite_state_machine::*;
     ///
-    /// dfa = finite_state_machine::DFA {
-    ///     states: fnv::FnvHashSet::default(),
-    ///     initial_state: None,
-    ///     symbols: fnv::FnvHashSet::default(),
-    ///     accept_states: fnv::FnvHashSet::default(),
-    ///     transitions: fnv::FnvHashMap::default(),
-    /// };
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
     ///
     /// // Add a new state with ID 0:
     /// assert!(dfa.add_state(0).is_ok());
@@ -57,7 +83,7 @@ SymbolT: Hash + Eq + Copy
     /// // Try to add state that already exists:
     /// assert!(dfa.add_state(0).is_err());
     /// ```
-    pub fn add_state(self: &mut DFA<StateIdT, SymbolT>, state: StateIdT) -> Result<(), &str> {
+    pub fn add_state(&mut self, state: StateIdT) -> Result<(), &str> {
         if !self.states.contains(&state) {
             self.states.insert(state);
             Ok(())
@@ -66,40 +92,195 @@ SymbolT: Hash + Eq + Copy
         }
     }
 
-    pub fn add_symbols(self: &mut DFA<StateIdT, SymbolT>, symbols: Vec<SymbolT>) -> () {
+    /// Add a vector of values to the symbols of the DFA
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // DFAs input alphabet should be {a, b, c}
+    /// let symbols = vec!['a', 'b', 'c'];
+    ///
+    /// // Add symbols
+    /// let status = dfa.add_symbols(symbols);
+    /// assert!(status.is_ok());
+    ///
+    /// // Includes already existing symbol 'a'
+    /// let symbols = vec!['a', 'd', 'e'];
+    ///
+    /// // Adding symbols fails, 'a' is already a symbol
+    /// let status = dfa.add_symbols(symbols);
+    /// assert!(status.is_err());
+    /// ```
+    pub fn add_symbols(&mut self, symbols: Vec<SymbolT>) -> Result<(), &str> {
         for &symbol in &symbols {
             if !self.symbols.contains(&symbol) {
                 self.symbols.insert(symbol);
+            } else {
+                return Err("Symbol is already present in set of symbols.");
             }
         }
+        Ok(())
     }
 
-    pub fn add_transition(self: &mut DFA<StateIdT, SymbolT>, input: (StateIdT, SymbolT), result_state: StateIdT) -> () {
-        if !self.transitions.contains_key(&input) {
-            self.transitions.insert(input, result_state);
-        } else {
-            panic!(
-                "Transition from given state with given symbol already present in set of transitions. \
-                The type DFA does not support non-deterministic automata."
-            );
+    /// Set transition from state with valid input symbol to other state.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // DFAs input alphabet should be {a, b, c}
+    /// let symbols = vec!['a', 'b', 'c'];
+    /// dfa.add_symbols(symbols).unwrap();
+    ///
+    /// // DFA has states 0, 1 and 2
+    /// for i in 0..3 {
+    ///     dfa.add_state(i).unwrap();
+    /// }
+    ///
+    /// // From state 0 with input 'a', go to state 2
+    /// let status = dfa.set_transition((0, 'a'), 2);
+    /// assert!(status.is_ok());
+    ///
+    /// // Redefine transition from state 0 with input 'a'
+    /// let status = dfa.set_transition((0, 'a'), 1);
+    /// assert!(status.is_ok());
+    ///
+    /// // Defining transition for non-existent states fails
+    /// let status = dfa.set_transition((100, 'a'), 101);
+    /// assert!(status.is_err());
+    ///
+    /// // Defining transition for invalid input symbol fails
+    /// let status = dfa.set_transition((0, 'G'), 1);
+    /// assert!(status.is_err());
+    /// ```
+    pub fn set_transition(&mut self, input: (StateIdT, SymbolT), result_state: StateIdT) -> Result<(), &str> {
+        let (start_state, symbol) = input;
+        if !self.symbols.contains(&symbol) {
+            return Err("Provided symbol not in DFAs set of symbols.");
+        } else if !self.states.contains(&start_state) || !self.states.contains(&result_state) {
+            return Err("Provided state(s) not in DFAs set of states.");
         }
+
+        if let Vacant(e) = self.transitions.entry(input) {
+            e.insert(result_state);
+        } else if self.transitions.get(&input) == Some(&result_state) {
+            return Ok(());
+        } else {
+            self.transitions.remove(&input);
+            self.transitions.insert(input, result_state);
+        }
+        Ok(())
     }
 
-    pub fn declare_accept_state(self: &mut DFA<StateIdT, SymbolT>, state: StateIdT) -> () {
+    /// Declare an existing state as accepting.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // Add state 0
+    /// dfa.add_state(0).unwrap();
+    ///
+    /// // Declare state 0 as accepting
+    /// let status = dfa.set_accept_state(0);
+    /// assert!(status.is_ok());
+    ///
+    /// // Declaring non-existent state as accepting fails
+    /// let status = dfa.set_accept_state(100);
+    /// assert!(status.is_err());
+    /// ```
+    pub fn set_accept_state(&mut self, state: StateIdT) -> Result<(), &str> {
         if self.states.contains(&state) {
             if !self.accept_states.contains(&state) {
                 self.accept_states.insert(state);
             }
+            Ok(())
         } else {
-            panic!("State that is not part of DFA can't be declared as an accept state.");
+            Err("Given state is not in DFAs set of states.")
         }
     }
 
-    pub fn set_initial_state(self: &mut DFA<StateIdT, SymbolT>, state: StateIdT) -> () {
-        self.initial_state = Some(state);
+    /// Set the initial state of the DFA.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // Add state 0
+    /// dfa.add_state(0).unwrap();
+    ///
+    /// // Set state 0 as initial state
+    /// let status = dfa.set_initial_state(0);
+    /// assert!(status.is_ok());
+    ///
+    /// // Setting non-existent state as initial state fails
+    /// let status = dfa.set_initial_state(100);
+    /// assert!(status.is_err());
+    /// ```
+    pub fn set_initial_state(&mut self, state: StateIdT) -> Result<(), &str> {
+        if self.states.contains(&state) {
+            self.initial_state = Some(state);
+            Ok(())
+        } else {
+            Err("Given state is not in DFAs set of states.")
+        }
     }
 
-    pub fn trace_run(self: &DFA<StateIdT, SymbolT>, input: Vec<SymbolT>) -> Result<(RunResult, Vec<StateIdT>), &str> {
+    /// Run the DFA with a vector of inputs `input` and get status \
+    /// at the end (Accept, Deny or Unfinished) as well as a vector \
+    /// of states the DFA went through in order.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // DFAs input alphabet should be {a, b, c}
+    /// let symbols = vec!['a', 'b', 'c'];
+    /// dfa.add_symbols(symbols).unwrap();
+    ///
+    /// // DFA has states 0, 1 and 2
+    /// for i in 0..3 {
+    ///     dfa.add_state(i).unwrap();
+    /// }
+    ///
+    /// // State 0 is initial state
+    /// dfa.set_initial_state(0).unwrap();
+    ///
+    /// // From state 0 with input 'a', go to state 1
+    /// dfa.set_transition((0, 'a'), 1).unwrap();
+    ///
+    /// // From state 1 with input 'b', go to state 2
+    /// dfa.set_transition((1, 'b'), 2).unwrap();
+    ///
+    /// // Trace run through DFA with input
+    /// let result = dfa.trace_run(vec!['a', 'b']);
+    /// assert!(result.is_ok());
+    ///
+    /// // Extract run result and state backtrace from trace run
+    /// if let Err(e) = result {
+    ///     panic!("{}", e);
+    /// } else if let Ok((exit_state, backtrace)) = result {
+    ///     assert_eq!(exit_state, RunResult::Unfinished);
+    ///     assert_eq!(backtrace, vec![0, 1, 2]);
+    /// }
+    /// ```
+    pub fn trace_run(&mut self, input: Vec<SymbolT>) -> Result<(RunResult, Vec<StateIdT>), &str> {
 
         let mut current_state: StateIdT;
 
@@ -114,7 +295,7 @@ SymbolT: Hash + Eq + Copy
             if self.accept_states.contains(&current_state) {
                 return Ok((RunResult::Accept, (*state_trace).to_vec()));
             } else {
-                return Ok((RunResult::Deny, (*state_trace).to_vec()));
+                return Ok((RunResult::Unfinished, (*state_trace).to_vec()));
             }
         }
         
@@ -132,62 +313,9 @@ SymbolT: Hash + Eq + Copy
         }
 
         if self.accept_states.contains(&current_state) {
-            return Ok((RunResult::Accept, (*state_trace).to_vec()));
+            Ok((RunResult::Accept, (*state_trace).to_vec()))
         } else {
-            return Ok((RunResult::Deny, (*state_trace).to_vec()));
+            Ok((RunResult::Unfinished, (*state_trace).to_vec()))
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn trace_run_works() {
-        let mut dfa: DFA<u16, u16> = DFA {
-            states: FnvHashSet::default(),
-            initial_state: None,
-            symbols: FnvHashSet::default(),
-            accept_states: FnvHashSet::default(),
-            transitions: FnvHashMap::default(),
-        };
-
-        let mut symbols: Vec<u16> = Vec::new();
-        for i in 0..10 {
-            symbols.push(i);
-        }
-
-        dfa.add_symbols(symbols);
-
-        for i in 0..3 {
-            match dfa.add_state(i) {
-                Ok(_) => continue,
-                Err(_) => return,
-            }
-        }
-
-        dfa.set_initial_state(0);
-        dfa.declare_accept_state(2);
-
-        dfa.add_transition((0, 5), 1);
-        dfa.add_transition((1, 5), 2);
-
-        let input: Vec<u16> = vec![5, 5];
-        let output = dfa.trace_run(input);
-        let result = output.unwrap();
-
-        assert_eq!(result, (RunResult::Accept, vec![0,1,2]));
-
-        // only [0-9] are valid symbols, 10 is invalid.
-        let input: Vec<u16> = vec![5, 10];
-        let output = dfa.trace_run(input);
-        let result = match output {
-            Ok(_)  => Ok(()),
-            Err(_) => Err(()),
-        };
-
-        assert!(result.is_err());
-    }
-}
-
