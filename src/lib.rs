@@ -68,6 +68,45 @@ where
         }
     }
 
+    /// Remove a state from a DFAs set of states.
+    ///
+    /// - Note that transitions are user managed,
+    ///   transitions containing a removed state
+    ///   will not automatically be removed
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // Add a new state with ID 0
+    /// dfa.add_state(0).unwrap();
+    ///
+    /// // Remove state 0
+    /// assert!(dfa.remove_state(0).is_ok());
+    ///
+    /// // Removing non-existent state fails
+    /// assert!(dfa.remove_state(100).is_err());
+    /// ```
+    pub fn remove_state(&mut self, state: StateIdT) -> Result<(), &str> {
+        if self.states.contains(&state) {
+            self.states.remove(&state);
+            if self.accept_states.contains(&state) {
+                self.accept_states.remove(&state);
+            }
+            if let Some(initial_state) = self.initial_state {
+                if initial_state == state {
+                    self.initial_state = None;
+                }
+            }
+            Ok(())
+        } else {
+            Err("State with given ID is not present in set of states.")
+        }
+    }
+
     /// Add a state to a DFAs set of states.
     ///
     /// # Example
