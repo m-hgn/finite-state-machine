@@ -105,15 +105,13 @@ where
     /// let symbols = vec!['a', 'b', 'c'];
     ///
     /// // Add symbols
-    /// let status = dfa.add_symbols(symbols);
-    /// assert!(status.is_ok());
+    /// assert!(dfa.add_symbols(symbols).is_ok());
     ///
     /// // Includes already existing symbol 'a'
     /// let symbols = vec!['a', 'd', 'e'];
     ///
     /// // Adding symbols fails, 'a' is already a symbol
-    /// let status = dfa.add_symbols(symbols);
-    /// assert!(status.is_err());
+    /// assert!(dfa.add_symbols(symbols).is_err());
     /// ```
     pub fn add_symbols(&mut self, symbols: Vec<SymbolT>) -> Result<(), &str> {
         for &symbol in &symbols {
@@ -196,12 +194,10 @@ where
     /// dfa.add_state(0).unwrap();
     ///
     /// // Declare state 0 as accepting
-    /// let status = dfa.set_accept_state(0);
-    /// assert!(status.is_ok());
+    /// assert!(dfa.set_accept_state(0).is_ok());
     ///
     /// // Declaring non-existent state as accepting fails
-    /// let status = dfa.set_accept_state(100);
-    /// assert!(status.is_err());
+    /// assert!(dfa.set_accept_state(100).is_err());
     /// ```
     pub fn set_accept_state(&mut self, state: StateIdT) -> Result<(), &str> {
         if self.states.contains(&state) {
@@ -228,20 +224,17 @@ where
     /// dfa.add_state(1).unwrap();
     ///
     /// // Declare state 0 as accepting
-    /// let status = dfa.set_accept_state(0).unwrap();
+    /// dfa.set_accept_state(0).unwrap();
     ///
     /// // Declare accepting state 0 as non accepting
-    /// let status = dfa.set_non_accept_state(0);
-    /// assert!(status.is_ok());
+    /// assert!(dfa.set_non_accept_state(0).is_ok());
     ///
     /// // Declare already non accepting state 1 as non-
     /// // accepting. This succeeds but doesn't do anything
-    /// let status = dfa.set_non_accept_state(1);
-    /// assert!(status.is_ok());
+    /// assert!(dfa.set_non_accept_state(1).is_ok());
     ///
     /// // Declaring non-existent state as non accepting fails
-    /// let status = dfa.set_non_accept_state(100);
-    /// assert!(status.is_err());
+    /// assert!(dfa.set_non_accept_state(100).is_err());
     /// ```
     pub fn set_non_accept_state(&mut self, state: StateIdT) -> Result<(), &str> {
         if self.states.contains(&state) {
@@ -269,12 +262,10 @@ where
     /// dfa.add_state(0).unwrap();
     ///
     /// // Set state 0 as initial state
-    /// let status = dfa.set_initial_state(0);
-    /// assert!(status.is_ok());
+    /// assert!(dfa.set_initial_state(0).is_ok());
     ///
     /// // Setting non-existent state as initial state fails
-    /// let status = dfa.set_initial_state(100);
-    /// assert!(status.is_err());
+    /// assert!(dfa.set_initial_state(100).is_err());
     /// ```
     pub fn set_initial_state(&mut self, state: StateIdT) -> Result<(), &str> {
         if self.states.contains(&state) {
