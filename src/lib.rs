@@ -3,10 +3,10 @@
 
 use std::result::Result;
 
-use std::collections::hash_map::Entry::Vacant;
-use std::hash::Hash;
 use fnv::FnvHashMap;
 use fnv::FnvHashSet;
+use std::collections::hash_map::Entry::Vacant;
+use std::hash::Hash;
 
 /// State machine encapsulating the Tuple (Q, q0, Sigma, F, Delta)
 /// - The finite set of states (Q) `states`,
@@ -35,8 +35,8 @@ pub enum RunResult {
 
 impl<StateIdT, SymbolT> Default for DFA<StateIdT, SymbolT>
 where
-StateIdT: Hash + Eq + Copy,
-SymbolT: Hash + Eq + Copy
+    StateIdT: Hash + Eq + Copy,
+    SymbolT: Hash + Eq + Copy,
 {
     fn default() -> Self {
         Self::new()
@@ -45,8 +45,8 @@ SymbolT: Hash + Eq + Copy
 
 impl<StateIdT, SymbolT> DFA<StateIdT, SymbolT>
 where
-StateIdT: Hash + Eq + Copy,
-SymbolT: Hash + Eq + Copy
+    StateIdT: Hash + Eq + Copy,
+    SymbolT: Hash + Eq + Copy,
 {
     /// Create a new DFA with no states or transitions.
     ///
@@ -160,7 +160,11 @@ SymbolT: Hash + Eq + Copy
     /// let status = dfa.set_transition((0, 'G'), 1);
     /// assert!(status.is_err());
     /// ```
-    pub fn set_transition(&mut self, input: (StateIdT, SymbolT), result_state: StateIdT) -> Result<(), &str> {
+    pub fn set_transition(
+        &mut self,
+        input: (StateIdT, SymbolT),
+        result_state: StateIdT,
+    ) -> Result<(), &str> {
         let (start_state, symbol) = input;
         if !self.symbols.contains(&symbol) {
             return Err("Provided symbol not in DFAs set of symbols.");
@@ -205,6 +209,48 @@ SymbolT: Hash + Eq + Copy
                 self.accept_states.insert(state);
             }
             Ok(())
+        } else {
+            Err("Given state is not in DFAs set of states.")
+        }
+    }
+
+    /// Declare an existing state as not accepting.
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // Add states 0 and 1
+    /// dfa.add_state(0).unwrap();
+    /// dfa.add_state(1).unwrap();
+    ///
+    /// // Declare state 0 as accepting
+    /// let status = dfa.set_accept_state(0).unwrap();
+    ///
+    /// // Declare accepting state 0 as non accepting
+    /// let status = dfa.set_non_accept_state(0);
+    /// assert!(status.is_ok());
+    ///
+    /// // Declare already non accepting state 1 as non-
+    /// // accepting. This succeeds but doesn't do anything
+    /// let status = dfa.set_non_accept_state(1);
+    /// assert!(status.is_ok());
+    ///
+    /// // Declaring non-existent state as non accepting fails
+    /// let status = dfa.set_non_accept_state(100);
+    /// assert!(status.is_err());
+    /// ```
+    pub fn set_non_accept_state(&mut self, state: StateIdT) -> Result<(), &str> {
+        if self.states.contains(&state) {
+            if self.accept_states.contains(&state) {
+                self.accept_states.remove(&state);
+                Ok(())
+            } else {
+                Ok(())
+            }
         } else {
             Err("Given state is not in DFAs set of states.")
         }
@@ -281,7 +327,6 @@ SymbolT: Hash + Eq + Copy
     /// }
     /// ```
     pub fn trace_run(&mut self, input: Vec<SymbolT>) -> Result<(RunResult, Vec<StateIdT>), &str> {
-
         let mut current_state: StateIdT;
 
         match self.initial_state {
@@ -298,7 +343,7 @@ SymbolT: Hash + Eq + Copy
                 return Ok((RunResult::Unfinished, (*state_trace).to_vec()));
             }
         }
-        
+
         for &symbol in &input {
             if self.symbols.contains(&symbol) {
                 if let Some(next_state) = self.transitions.get(&(current_state, symbol)) {
