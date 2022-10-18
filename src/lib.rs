@@ -371,8 +371,8 @@ where
             if self.symbols.contains(&symbol) {
                 let result_state = self.transitions.get(&(state, symbol));
                 match result_state {
-                    None => return Ok(None),
-                    Some(result_state) => return Ok(Some(*result_state)),
+                    Some(result_state) => Ok(Some(*result_state)),
+                    None => Ok(None),
                 }
             } else {
                 Err("Input not in DFAs set of symbols.")
