@@ -315,6 +315,73 @@ where
         }
     }
 
+    /// Simulate a single step using one input symbol and
+    /// the current state to recieve the resulting state.
+    /// If there is a valid resulting state, returns
+    /// Ok(Some), if the symbol does not correspond to a
+    /// valid transition, returns Ok(None).
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // DFAs input alphabet should be {a, b, c}
+    /// let symbols = vec!['a', 'b', 'c'];
+    /// dfa.add_symbols(symbols).unwrap();
+    ///
+    /// // DFA has states 0, 1 and 2
+    /// for i in 0..3 {
+    ///     dfa.add_state(i).unwrap();
+    /// }
+    ///
+    /// // From state 0 with input 'a', go to state 1
+    /// dfa.set_transition((0, 'a'), 1).unwrap();
+    ///
+    /// // From state 1 with input 'b', go to state 2
+    /// dfa.set_transition((1, 'b'), 2).unwrap();
+    ///
+    /// // Simulate step from state 0 with symbol 'a'
+    /// // to state 1.
+    /// let result_state = dfa.step(0, 'a');
+    /// assert!(result_state.is_ok());
+    ///
+    /// // Get resulting StateID,
+    /// // 1 is expected in this case
+    /// assert_eq!(result_state.unwrap().unwrap(), 1 as u16);
+    ///
+    /// // Stepping from a valid state using an
+    /// // undefined transition doesn't fail but
+    /// // returns None as result state
+    /// let result_state = dfa.step(0, 'c');
+    /// assert_eq!(result_state, Ok(None));
+    ///
+    /// // Stepping with invalid symbol fails.
+    /// let result_state = dfa.step(0, 'Z');
+    /// assert!(result_state.is_err());
+    ///
+    /// // Stepping from a non-existent state fails.
+    /// let result_state = dfa.step(100, 'a');
+    /// assert!(result_state.is_err());
+    /// ```
+    pub fn step(&mut self, state: StateIdT, symbol: SymbolT) -> Result<Option<StateIdT>, &str> {
+        if self.states.contains(&state) {
+            if self.symbols.contains(&symbol) {
+                let result_state = self.transitions.get(&(state, symbol));
+                match result_state {
+                    None => return Ok(None),
+                    Some(result_state) => return Ok(Some(*result_state)),
+                }
+            } else {
+                Err("Input not in DFAs set of symbols.")
+            }
+        } else {
+            Err("Given state is not in DFAs set of states.")
+        }
+    }
+
     /// Run the DFA with a vector of inputs `input` and get status \
     /// at the end (Accept, Deny or Unfinished) as well as a vector \
     /// of states the DFA went through in order.
