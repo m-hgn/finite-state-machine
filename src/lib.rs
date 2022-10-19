@@ -382,6 +382,72 @@ where
         }
     }
 
+    /// Check if a DFA accepts a given sequence of inputs \
+    /// starting from the initial state of the dfa
+    ///
+    /// # Example
+    /// ```
+    /// use finite_state_machine::*;
+    ///
+    /// // DFA with u16 state IDs and char symbols
+    /// let mut dfa: DFA<u16, char> = DFA::new();
+    ///
+    /// // DFAs input alphabet should be {a, b, c}
+    /// let symbols = vec!['a', 'b', 'c'];
+    /// dfa.add_symbols(symbols).unwrap();
+    ///
+    /// // DFA has states 0, 1 and 2
+    /// for i in 0..3 {
+    ///     dfa.add_state(i).unwrap();
+    /// }
+    ///
+    /// // State 0 is initial state
+    /// dfa.set_initial_state(0).unwrap();
+    ///
+    /// // From state 0 with input 'a', go to state 1
+    /// dfa.set_transition((0, 'a'), 1).unwrap();
+    ///
+    /// // From state 1 with input 'b', go to state 2
+    /// dfa.set_transition((1, 'b'), 2).unwrap();
+    ///
+    /// // State 2 is accept state
+    /// dfa.set_accept_state(2).unwrap();
+    ///
+    /// // Check if DFA accepts input sequence 'a', 'b'
+    /// let accepts_input = dfa.accepts(vec!['a', 'b']);
+    /// assert!(accepts_input);
+    ///
+    /// // Check if DFA accepts input sequence 'a', 'a'
+    /// let accepts_input = dfa.accepts(vec!['a', 'a']);
+    /// assert!(!accepts_input);
+    ///
+    /// // Check if DFA accepts input sequence 'Z', 'b'
+    /// let accepts_input = dfa.accepts(vec!['a', 'a']);
+    /// assert!(!accepts_input);
+    ///
+    /// // Check if DFA accepts input sequence 'a'
+    /// let accepts_input = dfa.accepts(vec!['a']);
+    /// assert!(!accepts_input);
+    /// ```
+    pub fn accepts(&mut self, symbols: Vec<SymbolT>) -> bool {
+        if let Some(mut current_state) = self.initial_state {
+            for &symbol in &symbols {
+                if self.symbols.contains(&symbol) {
+                    match self.transitions.get(&(current_state, symbol)) {
+                        Some(next_state) => current_state = *next_state,
+                        None => return false,
+                    }
+                } else {
+                    return false;
+                }
+            }
+            if self.accept_states.contains(&current_state) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Run the DFA with a vector of inputs `input` and get status \
     /// at the end (Accept, Deny or Unfinished) as well as a vector \
     /// of states the DFA went through in order.
