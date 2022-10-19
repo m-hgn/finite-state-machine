@@ -423,7 +423,7 @@ where
     ///     assert_eq!(backtrace, vec![0, 1, 2]);
     /// }
     /// ```
-    pub fn trace_run(&mut self, input: Vec<SymbolT>) -> Result<(RunResult, Vec<StateIdT>), &str> {
+    pub fn trace_run(&mut self, symbols: Vec<SymbolT>) -> Result<(RunResult, Vec<StateIdT>), &str> {
         let mut current_state: StateIdT;
 
         match self.initial_state {
@@ -433,15 +433,7 @@ where
 
         let mut state_trace = vec![current_state];
 
-        if input.is_empty() {
-            if self.accept_states.contains(&current_state) {
-                return Ok((RunResult::Accept, (*state_trace).to_vec()));
-            } else {
-                return Ok((RunResult::Unfinished, (*state_trace).to_vec()));
-            }
-        }
-
-        for &symbol in &input {
+        for &symbol in &symbols {
             if self.symbols.contains(&symbol) {
                 if let Some(next_state) = self.transitions.get(&(current_state, symbol)) {
                     current_state = *next_state;
